@@ -1,3 +1,12 @@
+import { authenticate } from "../shopify.server";
+import { boundary } from "@shopify/shopify-app-react-router/server";
+
+export const loader = async ({ request }) => {
+  await authenticate.admin(request);
+
+  return null;
+};
+
 const ProductTable = () => (
   <s-section padding="none" accessibilityLabel="Product alert table section">
     <s-table paginate hasNextPage hasPreviousPage>
@@ -268,6 +277,7 @@ const EmptyProductState = () => (
 );
 
 export default function AppIndex() {
+
   return (
     <>
       <s-page heading="Home">
@@ -282,3 +292,7 @@ export default function AppIndex() {
     </>
   );
 }
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

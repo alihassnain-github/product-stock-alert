@@ -1,4 +1,12 @@
 import { useState } from "react";
+import { authenticate } from "../shopify.server";
+import { boundary } from "@shopify/shopify-app-react-router/server";
+
+export const loader = async ({ request }) => {
+  await authenticate.admin(request);
+
+  return null;
+};
 
 const defaultData = {
     subject: "[Low Stock Alert] {{product_name}} at {{shop_name}}",
@@ -72,3 +80,7 @@ export default function EmailTemplateForm() {
         </s-page>
     );
 }
+
+export const headers = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};
