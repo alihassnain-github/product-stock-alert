@@ -14,8 +14,8 @@ datasource db {
 }
 
 enum AlertFrequency {
-  ONCE
-  ALWAYS
+  ONCE   
+  ALWAYS 
 }
 
 enum LogStatus {
@@ -46,8 +46,8 @@ model Session {
 model AlertProduct {
   id             Int            @id @default(autoincrement())
   shop           String
-  productId      String // GID from Shopify (e.g., gid://shopify/Product/123)
-  variantId      String // GID from Shopify (e.g., gid://shopify/ProductVariant/456)
+  productId      String
+  variantId      String
   threshold      Int
   alertFrequency AlertFrequency @default(ONCE)
   createdAt      DateTime       @default(now())
@@ -75,7 +75,7 @@ model Setting {
   id                  Int      @id @default(autoincrement())
   shop                String   @unique
   enableNotifications Boolean  @default(true)
-  notificationEmail   String?
+  notificationEmail   String
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }

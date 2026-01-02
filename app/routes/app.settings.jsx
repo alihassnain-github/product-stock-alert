@@ -3,13 +3,19 @@ import db from "../db.server";
 import { validateSetting, getSetting } from "../models/Setting.server"
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { useActionData, useLoaderData, useSubmit } from "react-router";
+import { useActionData, useLoaderData, useLocation, useNavigate, useNavigation, useSearchParams, useSubmit } from "react-router";
 
 export async function loader({ request }) {
     const { session } = await authenticate.admin(request);
     const { shop } = session;
 
-    return await getSetting(shop);
+    const setting = await getSetting(shop);
+    if (!setting) return {
+        notificationEmail: "",
+        enableNotifications: true,
+    }
+
+    return setting;
 }
 
 export async function action({ request }) {
@@ -17,14 +23,13 @@ export async function action({ request }) {
     const { session, redirect } = await authenticate.admin(request);
     const { shop } = session;
 
-    console.log("Shop: ", shop);
+    const formData = await request.formData();
 
     const data = {
-        ...Object.fromEntries(await request.formData()),
+        notificationEmail: formData.get("notificationEmail"),
+        enableNotifications: formData.get("enableNotifications") === "true",
         shop,
     };
-
-    console.log("Data: ", data);
 
     const errors = validateSetting(data);
 
@@ -37,30 +42,33 @@ export async function action({ request }) {
         });
     }
 
-    await db.Setting.create({ data });
+    await db.setting.upsert({
+        where: { shop: shop },
+        create: data,
+        update: data,
+    })
 
-    return redirect("/app/settings");
-
+    return redirect("/app/settings?status=saved");
 }
 
 export default function SettingsPage() {
 
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const location = useLocation();
     const setting = useLoaderData();
     const [initialFormState, setInitialFormState] = useState(setting);
     const [formState, setFormState] = useState(setting);
     const errors = useActionData()?.errors || {};
+    const isSaving = useNavigation().state === "submitting";
     const isDirty =
         JSON.stringify(formState) !== JSON.stringify(initialFormState);
 
     const submit = useSubmit();
 
-    // const [enableNotifications, setEnableNotifications] = useState(false);
+    function handleSave(e) {
+        e.preventDefault();
 
-    // function handleChange() {
-    //     setEnableNotifications(!enableNotifications);
-    // }
-
-    function handleSave() {
         const data = {
             notificationEmail: formState.notificationEmail,
             enableNotifications: formState.enableNotifications,
@@ -71,19 +79,32 @@ export default function SettingsPage() {
 
     function handleReset() {
         setFormState(initialFormState);
-        window.shopify.saveBar.hide("setting-form");
     }
 
     useEffect(() => {
-        if (isDirty) {
-            window.shopify.saveBar.show("setting-form");
-        } else {
-            window.shopify.saveBar.hide("setting-form");
-        }
-        return () => {
-            window.shopify.saveBar.hide("setting-form");
-        };
+        const saveBar = document.getElementById("product-save-bar");
+        isDirty ? saveBar.show() : saveBar.hide();
     }, [isDirty]);
+
+    useEffect(() => {
+        const status = searchParams.get("status");
+
+        if (!status) return;
+
+        if (status === "saved") {
+            window.shopify.toast.show("Settings saved");
+        }
+
+        const newSearchParams = new URLSearchParams(searchParams);
+        newSearchParams.delete("status");
+        navigate(
+            {
+                pathname: location.pathname,
+                search: newSearchParams.toString(),
+            },
+            { replace: true }
+        );
+    }, [searchParams, navigate, location]);
 
     useEffect(() => {
         setInitialFormState(setting);
@@ -91,13 +112,23 @@ export default function SettingsPage() {
     }, [setting]);
 
     return (
-        <form data-save-bar onSubmit={handleSave} onReset={handleReset}>
+        <form onSubmit={handleSave}>
+            <ui-save-bar id="product-save-bar">
+                <button variant="primary" disabled={isSaving} loading={isSaving ? "" : false} type="submit"></button>
+                <button disabled={isSaving} onClick={handleReset} type="button"></button>
+            </ui-save-bar>
             <s-page heading="Settings">
                 <s-section heading="Notifications">
                     <s-stack gap="base">
-                        <s-switch id="app-switch" name="enableNotifications" label={`${formState.notificationEmail ? "Disable" : "Enable"} notifications`} checked={formState.notificationEmail} onChange={(e) => {
-                            console.log(e.target.checked);
-                        }} />
+                        <s-switch
+                            id="notifications-switch"
+                            name="enableNotifications"
+                            label="Enable notifications"
+                            checked={formState.enableNotifications}
+                            onChange={(e) =>
+                                setFormState({ ...formState, enableNotifications: e.target.checked })
+                            }
+                        />
                     </s-stack>
                 </s-section>
                 <s-section heading="Email Settings">
@@ -106,16 +137,16 @@ export default function SettingsPage() {
                             required
                             label="Email"
                             name="notificationEmail"
-                            error={errors.email}
+                            error={errors.notificationEmail}
                             value={formState.notificationEmail}
                             onInput={(e) =>
                                 setFormState({ ...formState, notificationEmail: e.target.value })
                             }
                             autocomplete="off"
                             placeholder="bernadette.lapresse@jadedpixel.com"
-                            details="Used for sending notifications"
+                            details="Email to receive notifications."
                         />
-                        <s-button variant="primary" type="button">Send Test Email</s-button>
+                        <s-button variant="primary" type="button" disabled={!initialFormState.notificationEmail}>Send Test Email</s-button>
                     </s-stack>
                 </s-section>
             </s-page>

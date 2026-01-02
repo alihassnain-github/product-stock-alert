@@ -7,3 +7,37 @@
 .text-center {
     text-align: center;
 }
+
+.error-message {
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.table {
+    display: table;
+    width: 100%;
+    min-width: 900px;
+}
+
+@media screen and (max-width:489px) {
+    .table {
+        min-width: auto;
+    }
+}
+
+.image-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
