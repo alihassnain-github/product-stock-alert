@@ -48,6 +48,7 @@ model AlertProduct {
   shop           String
   productId      String
   variantId      String
+  inventoryItem  String
   threshold      Int
   alertFrequency AlertFrequency @default(ONCE)
   createdAt      DateTime       @default(now())

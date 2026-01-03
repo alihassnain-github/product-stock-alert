@@ -74,10 +74,14 @@ export default function AddProductForm() {
         if (products) {
             const { images, id, variants, title } = products[0];
 
+            console.log("The product: ", variants[0].inventoryItem);
+
+
             setFormState({
                 ...formState,
                 productId: id,
                 variantId: variants[0].id,
+                inventoryItem: variants[0].inventoryItem.id,
                 productTitle: title,
                 productAlt: images[0]?.altText,
                 productImage: images[0]?.originalSrc,
@@ -107,6 +111,7 @@ export default function AddProductForm() {
             alertFrequency: formState.alertFrequency,
             productId: formState.productId || "",
             variantId: formState.variantId || "",
+            inventoryItem: formState.inventoryItem || "",
         };
 
         submit(data, { method: "post" });
