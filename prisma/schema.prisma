@@ -51,6 +51,7 @@ model AlertProduct {
   inventoryItem  String
   threshold      Int
   alertFrequency AlertFrequency @default(ONCE)
+  isTriggered    Boolean        @default(false)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 

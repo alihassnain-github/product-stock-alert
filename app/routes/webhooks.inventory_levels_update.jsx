@@ -1,4 +1,5 @@
 import { authenticate } from "../shopify.server";
+import InventoryAlertsQueue from "../queue";
 import db from "../db.server";
 
 export const action = async ({ request }) => {
@@ -16,7 +17,28 @@ export const action = async ({ request }) => {
     if (!alertProduct) return new Response();
 
     if (payload.available <= alertProduct.threshold) {
-        // call redis to update the queue
+
+        const shouldTriggerOnce =
+            alertProduct.alertFrequency === "ONCE" &&
+            !alertProduct.isTriggered;
+
+        const shouldTriggerAlways =
+            alertProduct.alertFrequency === "ALWAYS";
+
+        if (shouldTriggerOnce || shouldTriggerAlways) {
+            await InventoryAlertsQueue.add("send-inventory-alert", {
+                shop,
+                id: alertProduct.id,
+                available: payload.available,
+            });
+        }
+
+        if (shouldTriggerOnce) {
+            await db.alertProduct.update({
+                where: { id: alertProduct.id },
+                data: { isTriggered: true },
+            });
+        }
     }
 
     return new Response();
