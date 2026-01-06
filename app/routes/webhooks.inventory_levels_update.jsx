@@ -10,6 +10,11 @@ export const action = async ({ request }) => {
     console.log("Topic:", topic);
     console.log("Payload:", payload);
 
+    const settings = await db.setting.findUnique({ where: { shop } });
+    if (!settings || !settings.enableNotifications) {
+        return new Response();
+    }
+
     const inventoryItem = `gid://shopify/InventoryItem/${payload.inventory_item_id}`;
 
     const alertProduct = await db.alertProduct.findFirst({ where: { shop, inventoryItem } });
@@ -27,8 +32,8 @@ export const action = async ({ request }) => {
 
         if (shouldTriggerOnce || shouldTriggerAlways) {
             await InventoryAlertsQueue.add("send-inventory-alert", {
-                shop,
-                alertProductId: alertProduct.id,
+                ...alertProduct,
+                notificationEmail: settings.notificationEmail,
             }, { removeOnComplete: true, removeOnFail: { count: 100 } });
         }
 
