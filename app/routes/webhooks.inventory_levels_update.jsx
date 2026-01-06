@@ -28,9 +28,8 @@ export const action = async ({ request }) => {
         if (shouldTriggerOnce || shouldTriggerAlways) {
             await InventoryAlertsQueue.add("send-inventory-alert", {
                 shop,
-                id: alertProduct.id,
-                available: payload.available,
-            });
+                alertProductId: alertProduct.id,
+            }, { removeOnComplete: true, removeOnFail: { count: 100 } });
         }
 
         if (shouldTriggerOnce) {
