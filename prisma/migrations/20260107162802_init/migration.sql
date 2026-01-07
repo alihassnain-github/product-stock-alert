@@ -1,5 +1,51 @@
 -- CreateTable
-CREATE TABLE `Session` (
+CREATE TABLE `alertproduct` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `shop` VARCHAR(191) NOT NULL,
+    `productId` VARCHAR(191) NOT NULL,
+    `variantId` VARCHAR(191) NOT NULL,
+    `inventoryItem` VARCHAR(191) NOT NULL,
+    `threshold` INTEGER NOT NULL,
+    `alertFrequency` ENUM('ONCE', 'ALWAYS') NOT NULL DEFAULT 'ONCE',
+    `isTriggered` BOOLEAN NOT NULL DEFAULT false,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    `productTitle` VARCHAR(191) NOT NULL,
+
+    INDEX `AlertProduct_shop_productTitle_idx`(`shop`, `productTitle`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `emaillog` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `shop` VARCHAR(191) NOT NULL,
+    `alertProductId` INTEGER NOT NULL,
+    `date` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `recipientEmail` VARCHAR(191) NOT NULL,
+    `stockLevel` INTEGER NOT NULL,
+    `status` ENUM('SUCCESS', 'FAILED') NOT NULL,
+
+    INDEX `EmailLog_alertProductId_fkey`(`alertProductId`),
+    INDEX `EmailLog_shop_idx`(`shop`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `emailtemplate` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `shop` VARCHAR(191) NOT NULL,
+    `subject` VARCHAR(191) NOT NULL,
+    `body` TEXT NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `EmailTemplate_shop_key`(`shop`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `session` (
     `id` VARCHAR(191) NOT NULL,
     `shop` VARCHAR(191) NOT NULL,
     `state` VARCHAR(191) NOT NULL,
@@ -22,38 +68,7 @@ CREATE TABLE `Session` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `AlertProduct` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `shop` VARCHAR(191) NOT NULL,
-    `productId` VARCHAR(191) NOT NULL,
-    `variantId` VARCHAR(191) NOT NULL,
-    `inventoryItem` VARCHAR(191) NOT NULL,
-    `threshold` INTEGER NOT NULL,
-    `alertFrequency` ENUM('ONCE', 'ALWAYS') NOT NULL DEFAULT 'ONCE',
-    `isTriggered` BOOLEAN NOT NULL DEFAULT false,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    INDEX `AlertProduct_shop_idx`(`shop`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `EmailLog` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `shop` VARCHAR(191) NOT NULL,
-    `alertProductId` INTEGER NOT NULL,
-    `date` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `recipientEmail` VARCHAR(191) NOT NULL,
-    `stockLevel` INTEGER NOT NULL,
-    `status` ENUM('SUCCESS', 'FAILED') NOT NULL,
-
-    INDEX `EmailLog_shop_idx`(`shop`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
-CREATE TABLE `Setting` (
+CREATE TABLE `setting` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `shop` VARCHAR(191) NOT NULL,
     `enableNotifications` BOOLEAN NOT NULL DEFAULT true,
@@ -65,18 +80,5 @@ CREATE TABLE `Setting` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- CreateTable
-CREATE TABLE `EmailTemplate` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `shop` VARCHAR(191) NOT NULL,
-    `subject` VARCHAR(191) NOT NULL,
-    `body` TEXT NOT NULL,
-    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `updatedAt` DATETIME(3) NOT NULL,
-
-    UNIQUE INDEX `EmailTemplate_shop_key`(`shop`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
 -- AddForeignKey
-ALTER TABLE `EmailLog` ADD CONSTRAINT `EmailLog_alertProductId_fkey` FOREIGN KEY (`alertProductId`) REFERENCES `AlertProduct`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `emaillog` ADD CONSTRAINT `EmailLog_alertProductId_fkey` FOREIGN KEY (`alertProductId`) REFERENCES `alertproduct`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
