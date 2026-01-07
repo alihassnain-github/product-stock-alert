@@ -4,17 +4,23 @@ import { truncate } from "../utils"
 import { authenticate } from "../shopify.server";
 import { getAlertProducts } from "../models/AlertProduct.server"
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { useLoaderData, useLocation, useNavigate, useSearchParams, useSubmit } from "react-router";
-import { createContext, useContext, useState } from "react";
-import { useDebouncedCallback } from "use-debounce"
+import { useFetcher, useLoaderData, useLocation, useNavigate, useSearchParams, useSubmit } from "react-router";
+import { createContext, useContext, useEffect, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
+
+const statusLabelMap = {
+  SUCCESS: "Success",
+  FAILED: "Failed",
+};
 
 export async function loader({ request }) {
   const { admin, session } = await authenticate.admin(request);
 
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") ?? 1);
+  const query = url.searchParams.get("query") ?? "";
 
-  const paginationData = await getAlertProducts(session.shop, admin.graphql, page);
+  const paginationData = await getAlertProducts(session.shop, admin.graphql, page, query);
 
   return {
     ...paginationData,
@@ -32,7 +38,11 @@ export async function action({ request }) {
   };
 
   if (data.action === "delete") {
-    await db.alertProduct.delete({ where: { id: Number(data.id) } });
+    await db.alertproduct.delete({ where: { shop, id: Number(data.id) } });
+  }
+
+  if (data.action === "clear") {
+    await db.emaillog.deleteMany({ where: { shop, alertProductId: Number(data.alertProductId) } });
   }
 
   return redirect("/app");
@@ -113,7 +123,7 @@ const ProductTable = () => {
 const ProductTableRow = ({ product }) => {
   const { setProduct } = useContext(AppContext);
   return (
-    <s-table-row id={product.id}>
+    <s-table-row id={product.id} clickDelegate={`/app/products/${product.id}`}>
       <s-table-cell>
         <s-stack direction="inline" gap="small" alignItems="center">
           <s-clickable
@@ -133,9 +143,15 @@ const ProductTableRow = ({ product }) => {
               )}
             </div>
           </s-clickable>
-          <s-link href={`/app/products/${product.id}`}>
-            {truncate(product.productTitle)}
-          </s-link>
+          {product.productDeleted ? (
+            <s-badge icon="alert-diamond" tone="critical">
+              Product has been deleted
+            </s-badge>
+          ) : (
+            <s-link href={`/app/products/${product.id}`}>
+              {truncate(product.productTitle)}
+            </s-link>
+          )}
         </s-stack>
       </s-table-cell>
       <s-table-cell>{product.variantTitle}</s-table-cell>
@@ -144,7 +160,7 @@ const ProductTableRow = ({ product }) => {
       <s-table-cell>{product.threshold}</s-table-cell>
       <s-table-cell>
         <s-button-group>
-          <s-button slot="secondary-actions" icon="alert-octagon" accessibilityLabel="View alert history" commandFor="history-modal" />
+          <s-button slot="secondary-actions" icon="alert-octagon" onClick={() => setProduct(product)} accessibilityLabel="View alert history" commandFor="history-modal" />
           <s-button slot="secondary-actions" icon="delete" tone="critical" onClick={() => setProduct(product)} accessibilityLabel="Remove product from alerts" commandFor="delete-modal" />
         </s-button-group>
       </s-table-cell>
@@ -152,47 +168,83 @@ const ProductTableRow = ({ product }) => {
   )
 }
 
-const HistoryModal = () => (
-  <s-modal id="history-modal" heading="Alert History: {{product_name}}">
-    <s-table>
-      <s-table-header-row>
-        <s-table-header>Date & Time</s-table-header>
-        <s-table-header>Recipient</s-table-header>
-        <s-table-header format="numeric">Stock Level</s-table-header>
-        <s-table-header>Status</s-table-header>
-      </s-table-header-row>
-      <s-table-body>
-        <s-table-row>
-          <s-table-cell>Oct 24, 10:15 AM</s-table-cell>
-          <s-table-cell>admin@store.com</s-table-cell>
-          <s-table-cell>23</s-table-cell>
-          <s-table-cell>
-            <s-badge color="base" tone="success">
-              Delivered
-            </s-badge>
-          </s-table-cell>
-        </s-table-row>
-      </s-table-body>
-    </s-table>
-    <s-button slot="secondary-actions" commandFor="history-modal" command="--hide">
-      Close
-    </s-button>
-    <s-button
-      slot="primary-action"
-      variant="primary"
-      commandFor="history-modal"
-      command="--hide"
-    >
-      Clear Logs
-    </s-button>
-  </s-modal>
-)
+const HistoryModal = () => {
+
+  const { handleRemove, selectedProduct, logs, isLoading } = useContext(AppContext);
+
+  return (
+    <s-modal id="history-modal" heading={`Alert History: ${selectedProduct?.productTitle ?? ""}`}>
+      {
+        isLoading ? (
+          <s-stack padding="large" direction="inline" justifyContent="center">
+            <s-spinner accessibilityLabel="Loading" size="large-100"></s-spinner>
+          </s-stack>
+        ) : (
+          <>
+            {logs?.length === 0 ? (
+              <s-grid gap="none" justifyItems="center" paddingBlock="none">
+                <s-box>
+                  <s-image
+                    aspectRatio="1/0.5"
+                    src="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                    alt="A stylized graphic of a document"
+                  />
+                </s-box>
+                <s-grid justifyItems="center">
+                  <s-paragraph>
+                    No logs found.
+                  </s-paragraph>
+                </s-grid>
+              </s-grid>
+            ) : (
+              <s-table>
+                <s-table-header-row>
+                  <s-table-header>Date & Time</s-table-header>
+                  <s-table-header>Recipient</s-table-header>
+                  <s-table-header format="numeric">Stock Level</s-table-header>
+                  <s-table-header>Status</s-table-header>
+                </s-table-header-row>
+                <s-table-body>
+                  {logs?.map((log) => (
+                    <s-table-row key={log.id}>
+                      <s-table-cell>{new Date(log.date).toDateString()}</s-table-cell>
+                      <s-table-cell>{log.recipientEmail}</s-table-cell>
+                      <s-table-cell>{log.stockLevel}</s-table-cell>
+                      <s-table-cell>
+                        <s-badge color="base" tone={log.status === "SUCCESS" ? "success" : "critical"}>
+                          {statusLabelMap[log.status]}
+                        </s-badge>
+                      </s-table-cell>
+                    </s-table-row>
+                  ))}
+                </s-table-body>
+              </s-table>
+            )}
+          </>
+        )
+      }
+      <s-button slot="secondary-actions" commandFor="history-modal" command="--hide">
+        Close
+      </s-button>
+      <s-button
+        disabled={isLoading || logs?.length === 0}
+        onClick={handleRemove}
+        slot="primary-action"
+        variant="primary"
+        commandFor="history-modal"
+        command="--hide"
+      >
+        Clear Logs
+      </s-button>
+    </s-modal>
+  )
+}
 
 const DeleteModal = () => {
   const { handleDelete, selectedProduct } = useContext(AppContext);
 
   return (
-    <s-modal id="delete-modal" heading="Remove alert?">
+    <s-modal size="base" id="delete-modal" heading="Remove alert?">
       <s-stack gap="base">
         <s-text>Are you sure you want to stop alert for &quot;{selectedProduct?.productTitle}&quot;?</s-text>
         <s-text tone="caution">This action cannot be undone.</s-text>
@@ -254,7 +306,9 @@ const EmptyProductState = () => (
 
 export default function AppIndex() {
 
-  const { items } = useLoaderData();
+  const { totalCount } = useLoaderData();
+
+  const logsFetcher = useFetcher();
 
   const submit = useSubmit();
 
@@ -269,13 +323,23 @@ export default function AppIndex() {
     submit({ action: "delete", id: selectedProduct.id }, { method: "post" });
   }
 
+  function handleRemove() {
+    if (!selectedProduct) return;
+    submit({ action: "clear", alertProductId: selectedProduct.id }, { method: "post" });
+  }
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+    logsFetcher.load(`/app/logs?id=${selectedProduct.id}`)
+  }, [selectedProduct])
+
   return (
-    <AppContext.Provider value={{ selectedProduct, handleDelete, setProduct }}>
+    <AppContext.Provider value={{ selectedProduct, handleDelete, handleRemove, setProduct, logs: logsFetcher.data, isLoading: logsFetcher.state === "loading" }}>
       <s-page heading="Home">
         <s-button slot="secondary-actions" href="/app/products/new">
           Add product to watch
         </s-button>
-        {items.length === 0 ? (
+        {totalCount === 0 ? (
           <EmptyProductState />
         ) : (
           <ProductTable />

@@ -32,7 +32,6 @@ export async function action({ request }) {
     };
 
     const errors = validateSetting(data);
-
     if (errors) {
         return new Response(JSON.stringify({ errors }), {
             status: 422,
@@ -146,7 +145,6 @@ export default function SettingsPage() {
                             placeholder="bernadette.lapresse@jadedpixel.com"
                             details="Email to receive notifications."
                         />
-                        <s-button variant="primary" type="button" disabled={!initialFormState.notificationEmail}>Send Test Email</s-button>
                     </s-stack>
                 </s-section>
             </s-page>

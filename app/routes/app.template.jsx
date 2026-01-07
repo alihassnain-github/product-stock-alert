@@ -14,10 +14,15 @@ export async function loader({ request }) {
     const { session } = await authenticate.admin(request);
     const { shop } = session;
 
-    const template = await getTemplate(shop);
-    if (!template) return {
-        subject: defaultData.subject,
-        body: defaultData.body
+    let template = await getTemplate(shop);
+    if (!template) {
+        template = await db.emailtemplate.create({
+            data: {
+                shop,
+                subject: defaultData.subject,
+                body: defaultData.body,
+            }
+        })
     }
 
     return template;
@@ -44,7 +49,7 @@ export async function action({ request }) {
         });
     }
 
-    await db.emailTemplate.upsert({
+    await db.emailtemplate.upsert({
         where: { shop: shop },
         create: data,
         update: data,

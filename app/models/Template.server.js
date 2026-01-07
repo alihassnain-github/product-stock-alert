@@ -1,7 +1,7 @@
 import db from "../db.server";
 
 export async function getTemplate(shop) {
-    return await db.emailTemplate.findUnique({
+    return await db.emailtemplate.findUnique({
         where: { shop }
     })
 }

@@ -1,7 +1,7 @@
 import db from "../db.server";
 
 export async function getAlertProduct(id, graphql) {
-    const alertProduct = await db.alertProduct.findFirst({ where: { id } });
+    const alertProduct = await db.alertproduct.findFirst({ where: { id } });
     if (!alertProduct) {
         return null;
     }
@@ -11,16 +11,16 @@ export async function getAlertProduct(id, graphql) {
 
 export const PAGE_SIZE = 10;
 
-export async function getAlertProducts(shop, graphql, page = 1) {
+export async function getAlertProducts(shop, graphql, page = 1, query) {
 
     const skip = (page - 1) * PAGE_SIZE;
 
-    const totalCount = await db.alertProduct.count({
+    const totalCount = await db.alertproduct.count({
         where: { shop },
     });
 
-    const alertProducts = await db.alertProduct.findMany({
-        where: { shop },
+    const alertProducts = await db.alertproduct.findMany({
+        where: { shop, productTitle: { contains: query } },
         orderBy: { id: "desc" },
         take: PAGE_SIZE,
         skip: skip,
@@ -43,6 +43,13 @@ export async function getAlertProducts(shop, graphql, page = 1) {
         hasNextPage: totalCount > page * PAGE_SIZE,
         hasPreviousPage: page > 1,
     };
+}
+
+export async function getEmailLogs(shop, alertProductId) {
+    const emailLog = await db.emaillog.findMany({ where: { shop, alertProductId } });
+    if (emailLog.length === 0) return [];
+
+    return emailLog;
 }
 
 async function supplementAlertProduct(alertProduct, graphql) {
@@ -77,7 +84,7 @@ async function supplementAlertProduct(alertProduct, graphql) {
 
     return {
         ...alertProduct,
-        productDeleted: !productVariant,
+        productDeleted: !productVariant?.product?.title,
         productTitle: productVariant?.product?.title,
         variantTitle: productVariant?.title,
         productImage: productVariant?.product?.featuredImage?.url,

@@ -28,7 +28,7 @@ export async function action({ request, params }) {
     };
 
     if (data.action === "delete") {
-        await db.alertProduct.delete({ where: { id: Number(params.id) } });
+        await db.alertproduct.delete({ where: { id: Number(params.id) } });
         return redirect("/app");
     }
 
@@ -45,8 +45,8 @@ export async function action({ request, params }) {
 
     const alertProduct =
         params.id === "new"
-            ? await db.alertProduct.create({ data: { ...data, threshold: Number(data.threshold) } })
-            : await db.alertProduct.update({ where: { id: Number(params.id) }, data: { ...data, threshold: Number(data.threshold) } });
+            ? await db.alertproduct.create({ data: { ...data, threshold: Number(data.threshold) } })
+            : await db.alertproduct.update({ where: { id: Number(params.id) }, data: { ...data, threshold: Number(data.threshold) } });
 
     return redirect(`/app/products/${alertProduct.id}${params.id === "new" ? "?status=created" : "?status=saved"}`);
 }
@@ -109,6 +109,7 @@ export default function AddProductForm() {
         const data = {
             threshold: formState.threshold,
             alertFrequency: formState.alertFrequency,
+            productTitle: formState.productTitle,
             productId: formState.productId || "",
             variantId: formState.variantId || "",
             inventoryItem: formState.inventoryItem || "",
@@ -156,7 +157,7 @@ export default function AddProductForm() {
         setInitialFormState(alertProduct);
         setFormState(alertProduct);
     }, [id, alertProduct]);
-
+    
     return (
         <form onSubmit={handleSave}>
             <ui-save-bar id="product-save-bar">

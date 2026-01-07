@@ -17,7 +17,7 @@ export const action = async ({ request }) => {
 
     const inventoryItem = `gid://shopify/InventoryItem/${payload.inventory_item_id}`;
 
-    const alertProduct = await db.alertProduct.findFirst({ where: { shop, inventoryItem } });
+    const alertProduct = await db.alertproduct.findFirst({ where: { shop, inventoryItem } });
 
     if (!alertProduct) return new Response();
 
@@ -38,7 +38,7 @@ export const action = async ({ request }) => {
         }
 
         if (shouldTriggerOnce) {
-            await db.alertProduct.update({
+            await db.alertproduct.update({
                 where: { id: alertProduct.id },
                 data: { isTriggered: true },
             });
